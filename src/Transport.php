@@ -7,11 +7,10 @@ namespace Charter;
 /**
  * The one way out of this process.
  *
- * The original had `wp_remote_request` written into the middle of the client,
- * so nothing about the bridge could be run without WordPress and a network.
- * Here the call is behind a name, which is what lets the whole suite run
- * against an invented manager in memory — and what lets a test count how many
- * times the manager was rung up for one page.
+ * The call to the network is behind a name, which is what lets the whole suite
+ * run against an invented operator in memory — no WordPress, no account, no
+ * network — and what lets a check count how many times the operator was rung
+ * up to draw one page.
  */
 interface Transport
 {

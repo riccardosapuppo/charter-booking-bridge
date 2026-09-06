@@ -17,14 +17,11 @@ declare(strict_types=1);
  * array and a Caller, calls a method, and turns an Answer back into a
  * WP_REST_Response or a WP_Error. Nothing is decided here.
  *
- * That is the opposite of the arrangement it replaces, where the whole of the
- * booking flow lived inside a child theme's functions.php — 1,483 lines of it,
- * loaded on every request to the site, editable from the theme editor in the
- * admin panel by anybody with an administrator account.
- *
  * Two consequences worth naming. Nothing in src/ needs WordPress, so the whole
  * suite runs in about a second with nothing installed. And this file can be
- * read in one sitting by somebody deciding whether to trust it.
+ * read in one sitting by somebody deciding whether to trust it: everything a
+ * booking depends on is on the other side of the seam, in code that has checks
+ * around it.
  */
 
 if (!defined('ABSPATH')) {
@@ -59,10 +56,10 @@ final class Charter_Transients implements Charter\Cache
 /**
  * The real way out, over HTTP.
  *
- * A shorter timeout than the thirty seconds it replaces, because the bridge
- * retries: the original had one attempt and thirty seconds of patience on each
- * of eleven calls in a row, which is a worst case of five and a half minutes
- * against a max_execution_time of thirty.
+ * Eight seconds, because the bridge retries rather than waits. A boat's page
+ * makes ten calls in a row, so patience on each one multiplies: what bounds the
+ * page is the timeout times the attempts times the calls, and that product has
+ * to sit inside max_execution_time.
  */
 final class Charter_WordPress_Http implements Charter\Transport
 {
@@ -138,9 +135,10 @@ function charter_bridge(): Charter\Bridge
 /**
  * Who is asking, in WordPress's terms.
  *
- * `wp_verify_nonce` against the REST nonce the site's own pages are given. It
- * is one line, it was absent, and an absent line is invisible — which is the
- * whole story of the route that books.
+ * `wp_verify_nonce` against the REST nonce the site's own pages are given. One
+ * line, and the whole of what {@see Charter\Caller::fromOurPages()} means on a
+ * live site: the request was composed by a page we served. It does not say
+ * anybody signed in, and it is not meant to — a booking form is public.
  */
 function charter_caller(WP_REST_Request $request): Charter\Caller
 {
@@ -165,9 +163,8 @@ function charter_answer(WP_REST_Request $request, callable $route): WP_REST_Resp
 
     // Two texts, and they go to two different places. What the manager said
     // goes to the log; what the visitor is shown says what happened to them and
-    // nothing about the manager's internals. In the original there was one
-    // text, it was the manager's own error body, and the page printed it into a
-    // div on the screen.
+    // nothing about the manager's internals. There is a check that holds those
+    // two apart.
     if ($said->logged !== '') {
         error_log('[charter-bridge] ' . $said->code . ': ' . $said->logged);
     }

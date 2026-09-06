@@ -7,24 +7,18 @@ namespace Charter;
 /**
  * The person the boat is being booked for.
  *
- * This type exists because of the strangest thing in the original file. The
- * booking route built a customer, carefully, with a thought-out fallback for
- * every field a form might leave empty — "Promo", "Code", a zip of 00000, a
- * service email address, a phone of ten zeroes. Fourteen lines of defence.
+ * One customer, built once, checked once, and sent. The body that goes to the
+ * operator is built from this object and from nothing else, which is what makes
+ * "the anagraphic that arrives from the form is the anagraphic that arrives at
+ * the operator" a sentence about the code rather than about an intention.
  *
- * And then the request body built a second customer, inline, thirty lines
- * further down, out of the raw variables, with no fallbacks at all. The first
- * one was never read again. Not once.
+ * Checked means checked: a name and a surname, an address that is an address,
+ * and a country the operator actually has on its list. A booking with no name
+ * is not a booking, and there are no fallbacks here — inventing a name for an
+ * empty form is how empty ones get in.
  *
- * So the defence was inert, and the operator received bookings whose customer
- * was a row of empty strings. The form in the browser insisted on those fields,
- * which is why nobody noticed — but that insisting lives in the browser, and
- * the endpoint was open to anybody who did not use it.
- *
- * The repair is not to restore the fallbacks. A booking with no name is not a
- * booking, and inventing a name for it is how the empty ones got in. The
- * repair is that there is one customer, it is checked, and a booking without
- * one does not happen.
+ * The browser insists on those fields too. That insisting lives in the browser,
+ * and this endpoint is open to everything that is not a browser.
  */
 final class Customer
 {
@@ -65,10 +59,9 @@ final class Customer
 
         $countryId = (int) ($input['countryId'] ?? 0);
 
-        // The original defaulted this to 1 and never looked it up, while
-        // holding the country list in the same file and serving it to the
-        // dropdown from a route three functions away. Nobody sees a wrong
-        // country until somebody needs the nationality for a crew list.
+        // Looked up, not defaulted. The same list is behind the dropdown the
+        // visitor chose from, and nobody sees a wrong country until somebody
+        // needs the nationality for a crew list.
         if (!isset($countries[(string) $countryId])) {
             throw new NotACustomer('Please choose a country from the list.');
         }

@@ -5,11 +5,17 @@ declare(strict_types=1);
 /**
  * The whole of the test framework, which is four functions and an exception.
  *
- * A check is a name and a closure. The closure is handed the name of the bridge
- * to build — 'repaired' or 'as-it-was' — and fails by throwing. That is enough
- * for a repository this size, and it means the suite runs on a checkout with
- * nothing installed, which is the point: `php bin/prove.php`, one second, no
- * network, no database, no WordPress.
+ * A check is a name and a closure, and it fails by throwing. The name is the
+ * guarantee, written as a sentence, so that the runner's output reads as the
+ * list of things the bridge is being held to.
+ *
+ * Four functions and an exception is enough for a repository this size, and it
+ * means the suite runs on a checkout with nothing installed, which is the
+ * point: `php bin/prove.php`, about a second, no network, no database, no
+ * WordPress.
+ *
+ * Every message a check fails with is written to be read on its own, by
+ * somebody who has just taken a guarantee out of src/ to watch this happen.
  */
 
 final class Failed extends RuntimeException
@@ -100,7 +106,14 @@ function check_tracked_files(): array
         }
     }
 
-    return array_values(array_filter($listed, static fn (string $one): bool => $one !== ''));
+    // Files git still carries but that are no longer on disk — a deletion that
+    // has not been committed yet — are not something to read. Every check that
+    // uses this list says how many files it looked at, so dropping them here
+    // cannot quietly turn a check into one that examines nothing.
+    return array_values(array_filter(
+        $listed,
+        static fn (string $one): bool => $one !== '' && is_file($root . '/' . $one),
+    ));
 }
 
 function check_root(): string

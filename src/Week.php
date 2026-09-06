@@ -10,9 +10,8 @@ namespace Charter;
  *
  * It exists so that "the dates have been validated" is something the type
  * system says rather than something a reader has to trace. Nothing downstream
- * takes two strings any more, so nothing downstream can be handed
- * `periodFrom = "pippo"` — which is a request that went the whole way through
- * the original, into the operator's system, and came back a confirmed booking.
+ * takes two strings, so nothing downstream can be handed a period that is not
+ * one.
  */
 final class Week
 {

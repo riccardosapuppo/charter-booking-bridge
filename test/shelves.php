@@ -8,13 +8,14 @@ use Charter\Caller;
 /**
  * The shelves on the front page.
  *
- * This one was not found by reading the file. It was found by walking the site
- * as a visitor — `php bin/walkthrough.php` — and noticing that the shelf headed
- * "special offers" was empty while the fleet plainly had offers on it.
+ * This is the check that came out of `php bin/walkthrough.php` rather than out
+ * of the code: a shelf headed "special offers" is worth opening as a visitor,
+ * because an empty carousel on a fleet that plainly has offers looks like
+ * nothing at all to anybody reading a diff.
  */
 return [
-    'the discounted shelf shows the discounted boats' => static function (string $which): void {
-        $bench = Bench::of($which);
+    'the discounted shelf shows the discounted boats' => static function (): void {
+        $bench = Bench::of();
 
         $said = $bench->routes->yachtsCarousel(
             $bench->week() + ['take' => 4, 'promoOnly' => 1],
@@ -27,13 +28,9 @@ return [
 
         // Two of the six invented boats are discounted, and they are the two
         // oldest — which is how discounting works everywhere: it is done on the
-        // unsold end of the fleet.
-        //
-        // The shelf sorted by build year, cut to the newest four, and only then
-        // filtered for a discount. The sort had just pushed the discounted ones
-        // to the end and the cut had just thrown them away. Two pages in
-        // production asked for the twelve newest discounted boats and were
-        // usually handed nothing at all.
+        // unsold end of the fleet. So a shelf that sorts by build year and cuts
+        // to the newest four before filtering finds nothing, and the shelf that
+        // filters first finds both.
         check_same(
             2,
             count($items),
@@ -46,5 +43,25 @@ return [
                 'a boat with no discount is on the discounted shelf: ' . check_show($one['name']),
             );
         }
+
+        // And the ones it found are the two the fleet discounts, by name, so
+        // that "two" is not two of anything.
+        $names = array_column($items, 'name');
+        sort($names);
+
+        check_same(['Echo', 'Foxtrot'], $names, 'the discounted shelf found ' . check_show($names));
+    },
+
+    'the ordinary shelf is the newest boats, and it is cut to what was asked for' => static function (): void {
+        $bench = Bench::of();
+
+        $said = $bench->routes->yachtsCarousel($bench->week() + ['take' => 3], Caller::anonymous());
+
+        check_same(true, $said->ok, 'the shelf did not load: ' . $said->said);
+
+        $years = array_column($said->body['items'] ?? [], 'buildYear');
+
+        check_same(3, count($years), 'a shelf asked for three boats came back with ' . count($years));
+        check_same([2023, 2022, 2021], $years, 'the shelf is not showing the newest boats first: ' . check_show($years));
     },
 ];

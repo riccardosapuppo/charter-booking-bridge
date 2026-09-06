@@ -9,13 +9,16 @@ namespace Charter;
  *
  * It is the whole reason the suite can be honest. Every claim in the README is
  * counted against this object: how many times it was rung up to draw one page,
- * how many reservations a thousand anonymous posts left in it, what the total
- * on a booking came to against what the page had shown. None of it needs a
- * network, an account, or anybody's permission.
+ * how many records a thousand anonymous posts left in it, what the total on a
+ * booking came to against what the page had shown. None of it needs a network,
+ * an account, or anybody's permission.
  *
- * It also checks the account it is given, in both the shapes the two families
- * of endpoints use, which is what lets a test rotate the password and count how
- * many routes noticed.
+ * It checks the account it is given, in both the shapes the two families of
+ * endpoints use, which is what lets a check rotate the password and count how
+ * many routes noticed. And it has two knobs a real one does not: it can be told
+ * to be unreachable for the next few calls, and it can be told to answer a
+ * catalogue endpoint with an empty list. Both are states a live system reaches
+ * on its own and neither can be waited for, so they are asked for.
  */
 final class InventedManager implements Transport
 {
@@ -35,6 +38,17 @@ final class InventedManager implements Transport
 
     /** Set to a number to make the next N calls fail as if the network dropped. */
     public int $unreachableFor = 0;
+
+    /**
+     * Catalogue paths this manager answers with a list that has nothing in it.
+     *
+     * A perfectly ordinary state: an operator who has not filled a shelf in.
+     * "There, and empty" and "never asked" are two different facts, and this is
+     * how a check gets to see the first one.
+     *
+     * @var list<string>
+     */
+    public array $emptyLists = [];
 
     public function __construct(string $username = self::USERNAME, string $password = self::PASSWORD)
     {
@@ -123,7 +137,7 @@ final class InventedManager implements Transport
         if (isset($lists[$path])) {
             [$key, $items] = $lists[$path];
 
-            return ['status' => 'OK', $key => $items()];
+            return ['status' => 'OK', $key => in_array($path, $this->emptyLists, true) ? [] : $items()];
         }
 
         if (str_starts_with($path, '/catalogue/v6/yachts/')) {
@@ -302,9 +316,10 @@ final class InventedManager implements Transport
     /**
      * What the extras on this quote come to.
      *
-     * A bare id means one of them; that is what the manager does with a number
-     * where it expects a line. The bridge as it was sent bare numbers, so every
-     * quote it made was for one of everything, whatever the page had added up.
+     * A line carries a quantity and is charged for that many; a bare id is one
+     * of them, which is what a real manager does with a number where it expects
+     * a line. So what the operator charges depends on what the bridge sends,
+     * and a check can hold the two figures up against each other.
      *
      * @param array<string,mixed> $boat
      * @param array<string,mixed> $body

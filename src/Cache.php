@@ -5,15 +5,16 @@ declare(strict_types=1);
 namespace Charter;
 
 /**
- * What WordPress calls a transient, with one difference that matters.
+ * What WordPress calls a transient, with one thing said out loud.
  *
- * `get` returns null only when nothing was ever stored. A catalogue that came
- * back legitimately empty is stored, and comes back as an empty array.
+ * `get` returns null when, and only when, nothing was ever stored under this
+ * key. A list that came back from the operator legitimately empty is stored,
+ * and comes back as an empty array.
  *
- * The original could not tell those two apart: every one of its eleven
- * catalogue readers guarded with `is_array($cached) && !empty($cached)`, so a
- * catalogue the manager answered with an empty list was fetched again on every
- * single request, for ever, and nothing ever looked wrong.
+ * That distinction is the whole interface. Without it there is no way to write
+ * a cache that can hold an empty answer, and an empty answer that cannot be
+ * held is re-fetched on every request for ever, quietly, while nothing looks
+ * broken.
  */
 interface Cache
 {

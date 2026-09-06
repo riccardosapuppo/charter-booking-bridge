@@ -6,12 +6,13 @@ namespace Charter;
 
 /**
  * A whole site in one object: an invented manager, an empty cache, a clock that
- * can be moved, and one of the two bridges wired to them.
+ * can be moved, somewhere for the customer's message to go, and the bridge
+ * wired to all four.
  *
- * Both the checks and the measurement stand on this. `Bench::of('repaired')`
- * and `Bench::of('as-it-was')` differ in exactly one line, which is what makes
- * it possible to run the same checks against both and require the second to
- * fail.
+ * Both the checks and the measurement stand on this, and neither of them
+ * reaches past it: everything they count — calls to the operator, records left
+ * behind, reads of the cache — is counted on these objects, in memory, with no
+ * network and nothing installed.
  */
 final class Bench
 {
@@ -22,21 +23,31 @@ final class Bench
         public readonly MemoryCache $cache,
         public readonly Clock $clock,
         public readonly KeptNotes $notes,
-        public readonly string $which,
     ) {
-        $this->routes = $which === 'as-it-was'
-            ? new TheWayItWas($manager, $cache, $clock)
-            : new Bridge(new Manager($manager), $cache, $clock, Fleet::OPERATOR, $notes);
+        $this->routes = new Bridge(new Manager($manager), $cache, $clock, Fleet::OPERATOR, $notes);
     }
 
     /**
-     * @param string $which 'repaired' or 'as-it-was'
+     * The next page load: a new bridge, the same transients, the same operator
+     * and the same clock.
+     *
+     * PHP builds the whole world again on every request, so whatever a route
+     * remembered inside itself during one page view is gone by the next one and
+     * the cache is all that is left. A check that counts calls across page
+     * views and reuses one bridge is a check about a memo in memory: it would
+     * go on passing with the cache taken out altogether. So every such check
+     * asks for one of these.
      */
-    public static function of(string $which, ?InventedManager $manager = null): self
+    public function nextRequest(): Routes
+    {
+        return new Bridge(new Manager($this->manager), $this->cache, $this->clock, Fleet::OPERATOR, $this->notes);
+    }
+
+    public static function of(?InventedManager $manager = null): self
     {
         $manager ??= new InventedManager();
 
-        // The one place the bridge reads the account from. A test that rotates
+        // The one place the bridge reads the account from. A check that rotates
         // the account rotates it here, and then counts who noticed.
         putenv(Secrets::USERNAME . '=' . InventedManager::USERNAME);
         putenv(Secrets::PASSWORD . '=' . InventedManager::PASSWORD);
@@ -46,13 +57,7 @@ final class Bench
         // and every figure in the README is the same figure tomorrow.
         $clock->pin((int) gmmktime(9, 0, 0, 4, 15, 2026));
 
-        return new self($manager, new MemoryCache($clock), $clock, new KeptNotes(), $which);
-    }
-
-    /** The two names a bench can have. */
-    public static function both(): array
-    {
-        return ['repaired', 'as-it-was'];
+        return new self($manager, new MemoryCache($clock), $clock, new KeptNotes());
     }
 
     /**

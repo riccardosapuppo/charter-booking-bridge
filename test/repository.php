@@ -3,11 +3,15 @@
 declare(strict_types=1);
 
 /**
- * Checks about the repository itself rather than about the bridge, so they say
- * the same thing whichever side is being run.
+ * Checks about the repository itself rather than about the bridge: that the
+ * README says what the program says, that every command it gives exists, and
+ * that nothing here names anybody.
+ *
+ * A README is prose, and prose is the part that goes stale without a sound.
+ * These are what stop it.
  */
 return [
-    'nothing here begins with a byte order mark' => static function (string $which): void {
+    'nothing here begins with a byte order mark' => static function (): void {
         // Three bytes, before the opening tag, in a file WordPress includes on
         // every single request. They are output: they go out before any header
         // can, which is where "headers already sent" comes from, and they sit
@@ -17,7 +21,8 @@ return [
         // output buffering is configured — so it happens in production and not
         // on the laptop.
         //
-        // The file this repository was rebuilt from began with them.
+        // A mark comes back through an editor rather than through a commit,
+        // which is why this is a check and not a memory.
         $bad = [];
         $read = 0;
 
@@ -52,7 +57,7 @@ return [
         );
     },
 
-    'nothing here looks like an account, a person, or somebody\'s host' => static function (string $which): void {
+    'nothing here looks like an account, a person, or somebody\'s host' => static function (): void {
         $found = [];
         $read = 0;
 
@@ -95,7 +100,7 @@ return [
         check_same([], $found, 'these lines name something real: ' . implode(' | ', $found));
     },
 
-    'every command the README gives is one that is here' => static function (string $which): void {
+    'every command the README gives is one that is here' => static function (): void {
         $readme = (string) file_get_contents(check_root() . '/README.md');
 
         preg_match_all('/^php (bin\/[a-z]+\.php)/m', $readme, $said);
@@ -103,7 +108,7 @@ return [
         $named = array_unique($said[1]);
 
         check_true(
-            count($named) >= 4,
+            count($named) >= 3,
             'only ' . count($named) . ' commands were found in the README, so this check is looking in the wrong place',
         );
 
@@ -127,20 +132,63 @@ return [
         check_same([], $unmentioned, 'these are in bin/ and the README never mentions them: ' . implode(', ', $unmentioned));
     },
 
-    'the figures in the README are the ones the measurement prints' => static function (string $which): void {
+    'every guarantee the README opens with is one the measurement prints' => static function (): void {
+        // The table at the top of the README is the list of things this
+        // repository says about itself. Each row is a sentence, and each of
+        // those sentences is the title of a claim that bin/measure.php
+        // recomputes. A sentence that stops matching a claim is a sentence
+        // nothing is checking any more.
+        $readme = (string) file_get_contents(check_root() . '/README.md');
+
+        preg_match_all('/^\| \*\*(.+?)\*\* \|/m', $readme, $said);
+
+        $promised = $said[1];
+
+        check_true(
+            count($promised) >= 8,
+            'only ' . count($promised) . ' guarantees were found in the README table, so this check is looking in the wrong place',
+        );
+
+        $titles = array_map(
+            static fn (Charter\Claim $claim): string => $claim->title,
+            Charter\Claims::all(),
+        );
+
+        check_same(
+            count($titles),
+            count($promised),
+            'the README lists ' . count($promised) . ' guarantees and the measurement computes ' . count($titles),
+        );
+
+        $unmeasured = [];
+
+        foreach ($promised as $number => $sentence) {
+            // The README ends each one with a full stop; the claim titles do
+            // not carry one.
+            $sentence = rtrim($sentence, '.');
+
+            if (($titles[$number] ?? '') !== $sentence) {
+                $unmeasured[] = $sentence . ' (the measurement says: ' . ($titles[$number] ?? 'nothing') . ')';
+            }
+        }
+
+        check_same([], $unmeasured, 'these are promised in the README and not measured: ' . implode(' | ', $unmeasured));
+    },
+
+    'the figures in the README are the ones the measurement prints' => static function (): void {
         $readme = (string) file_get_contents(check_root() . '/README.md');
 
         check_true($readme !== '', 'the README could not be read, so nothing was compared');
 
-        // The claims table at the top of the README, which is prose and
+        // The guarantees table at the top of the README, which is prose and
         // therefore the part that goes stale without a sound.
         $table = [];
 
-        if (preg_match('/It comes with (\w+) claims.*?\n\n(.*?)\n\n/s', $readme, $said) === 1) {
-            $table = explode("\n", $said[2]);
+        if (preg_match('/^\| \*\*.+\n(?:\|.*\n)+/m', $readme, $said) === 1) {
+            $table = explode("\n", $said[0]);
         }
 
-        check_true($table !== [], 'the README no longer has a claims table, so nothing was compared');
+        check_true($table !== [], 'the README no longer has a guarantees table, so nothing was compared');
 
         $printed = check_measurement();
 
@@ -156,7 +204,7 @@ return [
 
         check_true(
             count($figures) >= 8,
-            'only ' . count($figures) . ' figures were found in the README claims table, so this check is looking in the wrong place',
+            'only ' . count($figures) . ' figures were found in the README guarantees table, so this check is looking in the wrong place',
         );
 
         $missing = [];
@@ -170,30 +218,47 @@ return [
         check_same([], $missing, 'the README quotes figures the measurement does not print: ' . implode(', ', $missing));
     },
 
-    'the README says how many of them go red against the original' => static function (string $which): void {
+    'the README prints what the measurement prints' => static function (): void {
+        // The whole measurement appears in the README, in full, in a code
+        // block. A block of output pasted into prose is a block that was true
+        // once, so it is regenerated and compared here as well as in CI: the
+        // program is the copy that counts.
         $readme = (string) file_get_contents(check_root() . '/README.md');
-        $red = (string) file_get_contents(check_root() . '/bin/red.php');
 
-        // The table in bin/red.php is the list of repairs somebody can watch
-        // fail, and the README quotes its size in a line of output. A number in
-        // a line of pasted output is a number that was true once.
-        // The keys are on their own line, and three of them contain an escaped
-        // apostrophe — which is how the first version of this check counted
-        // fourteen of seventeen and was believed.
-        $listed = preg_match_all('/^\s{4}\'(?:[^\'\\\\]|\\\\.)+\'\s*$/m', $red);
+        $after = strstr($readme, '## The measurement, in full');
 
-        check_true($listed > 10, 'only ' . $listed . ' checks were found in the red table, so this check is looking in the wrong place');
+        check_true(is_string($after), 'the README no longer carries the measurement, so nothing was compared');
 
         check_same(
             1,
-            preg_match('/(\d+) checks are meant to go red/', $readme, $said),
-            'the README no longer says how many checks go red against the original',
+            preg_match('/```\n(.*?)\n```/s', (string) $after, $said),
+            'the measurement section of the README has no code block in it',
         );
 
-        check_same($listed, (int) $said[1], 'the README says ' . $said[1] . ' go red and the table lists ' . $listed);
+        $quoted = trim(str_replace("\r", '', $said[1]), "\n");
+        $printed = trim(str_replace("\r", '', check_measurement()), "\n");
+
+        check_true(strlen($quoted) > 2000, 'the block quoted in the README is ' . strlen($quoted) . ' characters, which is not the measurement');
+
+        if ($quoted !== $printed) {
+            $quotedLines = explode("\n", $quoted);
+            $printedLines = explode("\n", $printed);
+            $first = 'the two are of different lengths';
+
+            foreach ($printedLines as $number => $line) {
+                if (($quotedLines[$number] ?? null) !== $line) {
+                    $first = 'line ' . ($number + 1) . ': the README says '
+                        . check_show($quotedLines[$number] ?? null) . ' and the program says ' . check_show($line);
+
+                    break;
+                }
+            }
+
+            throw new Failed('the measurement in the README is not what bin/measure.php prints — ' . $first);
+        }
     },
 
-    'the README says how many checks there are' => static function (string $which): void {
+    'the README says how many checks there are' => static function (): void {
         $readme = (string) file_get_contents(check_root() . '/README.md');
 
         $running = 0;
@@ -217,4 +282,3 @@ return [
         check_same($running, (int) $said[1], 'the README says ' . $said[1] . ' checks and there are ' . $running);
     },
 ];
-

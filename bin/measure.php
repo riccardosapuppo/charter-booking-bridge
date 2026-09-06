@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /**
- * Runs the six claims against both bridges and prints what came out.
+ * Runs the eight claims and prints what came out.
  *
  * Exits non-zero when one of them stops holding, so it is a check and not a
  * demonstration: the README quotes these figures, CI runs this and diffs the
@@ -16,8 +16,8 @@ require __DIR__ . '/../src/autoload.php';
 use Charter\Claims;
 
 echo PHP_EOL;
-echo 'An invented operator, an invented fleet, and the ten routes run twice:', PHP_EOL;
-echo 'once as they were, once repaired.', PHP_EOL;
+echo 'An invented operator, an invented fleet, and the ten routes measured against', PHP_EOL;
+echo 'them: what the bridge guarantees, and the working for each figure.', PHP_EOL;
 
 $claims = Claims::all();
 

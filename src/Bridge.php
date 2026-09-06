@@ -5,23 +5,24 @@ declare(strict_types=1);
 namespace Charter;
 
 /**
- * The ten routes, repaired.
+ * The ten routes.
  *
- * Read this next to {@see TheWayItWas}, which is the same ten as they were.
- * The shape is deliberately close: this is a repair, not a rewrite, and the
- * point of a repair is that somebody who knew the original can still find
- * their way around.
+ * What this file guarantees, in the order the checks in test/ assert it:
  *
- * What is different is short enough to list:
- *
- *  - The one route that commits somebody else's boat goes through a door.
- *  - There is one place the account is read, and it is the environment.
- *  - Dates are dates before anything is done with them.
- *  - The customer that was built is the customer that is sent.
- *  - Catalogue lists are read by one function against one table of keys.
- *  - A list that legitimately came back empty is remembered as empty.
- *  - Extras are checked against the boat, and carry the quantity that was shown.
- *  - The manager's own error text is logged, never shown.
+ *  - The two routes that write go through {@see Guard}: a booking has to have
+ *    been composed on a page we served, and one address gets five an hour.
+ *  - Dates become a {@see Week} before anything downstream sees them, so
+ *    nothing downstream can be handed two strings.
+ *  - There is one {@see Customer}, it is checked, and it is the one that is
+ *    sent to the operator.
+ *  - Extras are looked up on the boat, for this base and this week, and the
+ *    quantity on each line comes from the boat's own offer.
+ *  - The operator decides the total. Nothing here reads a price, an amount or
+ *    a total out of a request.
+ *  - Catalogue lists are read by {@see Catalogue}, once, against one table of
+ *    keys, and a list that came back empty is remembered as empty.
+ *  - The account comes from {@see Secrets}, which reads the environment.
+ *  - The operator's own error text is logged and never shown.
  */
 final class Bridge implements Routes
 {
@@ -51,10 +52,9 @@ final class Bridge implements Routes
 
             $fleet = $this->catalogue->fleet($this->operator);
 
-            // The operator is not a query parameter. It was, in four routes,
-            // with the site's own number as a default, so anybody could send
-            // another operator's number and have the site fetch and cache a
-            // catalogue nobody had asked for, using the site's account.
+            // The operator is fixed at construction and is not a query
+            // parameter: whose catalogue this site fetches, with this site's
+            // account, is not a decision a visitor gets to make.
             $free = $this->availability(array_map('intval', array_keys($fleet)), $week);
 
             $items = [];
@@ -65,11 +65,10 @@ final class Bridge implements Routes
 
             usort($items, static fn (array $a, array $b): int => ($b['buildYear'] ?? 0) <=> ($a['buildYear'] ?? 0));
 
-            // Filter, then cut. The original cut first and filtered after, and
-            // discounting is done on the oldest boats — exactly the ones the
-            // sort had just pushed to the end and the cut had just removed. Two
-            // pages in production asked for the twelve newest discounted boats
-            // and were usually handed nothing.
+            // Filter, then cut. Discounting is done on the unsold end of a
+            // fleet — the older boats — which the sort above has just pushed
+            // to the bottom, so cutting first and filtering after hands back an
+            // empty shelf on a fleet that plainly has offers.
             if ($promoOnly) {
                 $items = array_values(array_filter(
                     $items,
@@ -117,14 +116,10 @@ final class Bridge implements Routes
 
             $model = $models[(string) ($boat['yachtModelId'] ?? '')] ?? [];
 
-            // The boat's own category, in a variable of its own.
-            //
-            // In the original this was `$categoryId`, and eighteen lines later
-            // the loop over the standard equipment used `$categoryId` again for
-            // the category of each *fitting*. By the time the loop ended it held
-            // the category of the last piece of kit on the boat, and that is
-            // what was looked up in the yacht-category map, and what came back
-            // was null. The page said "Yacht".
+            // The boat's own kind, in a variable of its own, which the loop
+            // over its fittings below does not touch: a fitting's category and
+            // a boat's category are two different tables under two names that
+            // want to be the same name.
             $categoryId = isset($model['yachtCategoryId']) ? (int) $model['yachtCategoryId'] : null;
 
             $standard = [];
@@ -154,12 +149,9 @@ final class Bridge implements Routes
 
                 $additional[] = [
                     'equipmentId' => (int) ($offer['equipmentId'] ?? 0),
-                    // A string. The map holds a name and a category, and the
-                    // loop above knows that; this line, in the original, put
-                    // the whole entry where the name goes, so the REST contract
-                    // promised a string and delivered an object. The page's own
-                    // helper happened to dig the name back out, which is why it
-                    // was never noticed.
+                    // A string, because the contract says a string. The map
+                    // holds an entry with a name and a category in it; what
+                    // goes out here is the name.
                     'name' => Text::of($entry['name'] ?? ''),
                     'price' => $offer['price'] ?? null,
                     'currency' => $offer['currency'] ?? 'EUR',
@@ -245,9 +237,9 @@ final class Bridge implements Routes
         return $this->attempt(function () use ($input): Answer {
             $week = $this->weekFrom($input);
 
-            // Every other limit in the original was clamped at both ends. The
-            // page number had a floor and no ceiling, on the most expensive
-            // read there is, and it is the one an idle script would walk.
+            // Clamped at both ends. A page number with a floor and no ceiling,
+            // on the most expensive read there is, is the one an idle script
+            // walks.
             $page = max(1, min(200, (int) ($input['page'] ?? 1)));
             $perPage = max(1, min(50, (int) ($input['perPage'] ?? 12)));
 
@@ -276,10 +268,9 @@ final class Bridge implements Routes
                 'periodFrom' => $week->from,
                 'periodTo' => $week->to,
                 // Counted from what is being handed over, not from what the
-                // search claimed before things were dropped from it. The
-                // original passed the upstream total through while silently
-                // dropping boats out of the list under it, so a page could say
-                // "120 found", show three, and leave "load more" lit.
+                // operator said before anything was dropped from it: a page
+                // that says "120 found" and shows three leaves "load more" lit
+                // for ever.
                 'totalCount' => count($items),
                 'count' => count($showing),
                 'items' => $showing,
@@ -330,10 +321,9 @@ final class Bridge implements Routes
                 );
             }
 
-            // Availability that stops the flow. In the original it was fetched,
-            // and used for one thing only: to decide a flag on the option. A
-            // boat that was not free simply did not appear in the answer, the
-            // status stayed UNKNOWN, and the booking went ahead anyway.
+            // Availability that stops the flow. A boat that is not free does
+            // not come back in the answer at all, so an unknown status is not a
+            // maybe: it is a no, and the booking does not go on.
             $free = $this->availability([$id], $week)[(string) $id] ?? null;
 
             if (($free['status'] ?? 'UNKNOWN') !== 'FREE') {
@@ -414,12 +404,12 @@ final class Bridge implements Routes
     {
         // Five an hour, from one address.
         //
-        // Trying a promo code is not a question the manager can be asked: each
-        // try leaves a real record in the operator's system. The original tried
-        // twice per attempt — once without the code and once with it — and
-        // compared the prices. Five hundred words out of a dictionary left a
-        // thousand rows, and told whoever ran it which codes exist and what
-        // each one is worth.
+        // Trying a promo code is not a question the manager can be asked: the
+        // only way to learn whether a code is any good is to ask for a quote
+        // carrying it, and a quote is a record in the operator's system that
+        // somebody has to live with. So the tries are counted per address, and
+        // the half of the comparison that does not depend on the code is asked
+        // once and kept.
         $shut = $this->guard->admit('promo', $who, 5, 3600);
 
         if ($shut !== null) {
@@ -491,11 +481,10 @@ final class Bridge implements Routes
     public function trackSearch(array $input, Caller $who): Answer
     {
         // Open, because it is telemetry from a public page, but counted — and
-        // what it counts has to be a boat. The original took an array of any
-        // length, of any integers, from anybody, and wrote all of it into one
-        // row of the options table that it read and rewrote whole on every
-        // call. Two hundred thousand made-up ids in one request was a row of
-        // 2.4 MB, and every later request paid for it.
+        // what it counts has to be a boat. This row is read and rewritten whole
+        // on every call, so whatever gets into it the site pays for on every
+        // later request: thirty ids at a time, de-duplicated, and only ids that
+        // are in the fleet.
         $shut = $this->guard->rate('track', $who, 60, 3600);
 
         if ($shut !== null) {
@@ -583,9 +572,10 @@ final class Bridge implements Routes
         try {
             return Dates::period($input['periodFrom'] ?? null, $input['periodTo'] ?? null, $this->clock->now());
         } catch (BadPeriod) {
-            // A shelf with no dates on it, or with dates that make no sense, is
-            // shown for the next available week rather than refused: nobody
-            // asked it a question about a period.
+            // A shelf with no dates on it, or with dates that make no sense,
+            // is shown for the next available week rather than refused: nobody
+            // asked it a question about a period. The route that books does not
+            // do this. See yachtRequest, which refuses.
             return Dates::nextWeek($this->clock->now());
         }
     }
@@ -679,10 +669,9 @@ final class Bridge implements Routes
             }
         }
 
-        // `?:` and not `??`. The original used `??`, which only steps in for
-        // null, so an empty string from the manager became the `src` of a
-        // broken image while a perfectly good fallback sat unused. Three routes
-        // had it, which is every grid and every carousel on the site.
+        // An empty string is not a picture. `??` steps in only for null and
+        // would let one through as the `src` of a broken image, so what is
+        // tested here is the emptiness and not the nullness.
         $main = trim((string) ($boat['mainPictureUrl'] ?? ''));
 
         if ($pictures === [] && $main !== '') {
@@ -733,11 +722,10 @@ final class Bridge implements Routes
     /**
      * Numbers from the manager, made numbers.
      *
-     * Four fields came through untouched — build year, cabins, berths, heads —
-     * and every template on the site put them into `innerHTML` without escaping
-     * them, because they were numbers. Everything around them was escaped. It
-     * is not a visitor's hole to use, but it is third-party data trusted for
-     * being the right sort of thing, and the fix is a cast.
+     * Build year, cabins, berths and heads go into templates that put them in
+     * front of a reader without escaping them, because they are numbers. They
+     * are numbers because of this cast, and not because of where they came
+     * from.
      */
     private static function whole(mixed $value): ?int
     {

@@ -7,17 +7,17 @@ namespace Charter;
 /**
  * The operator's booking system, as this bridge speaks to it.
  *
- * Two things live here that were spread over the original. The account, in the
- * two shapes the two families of endpoints want — flat at the top of the body
- * for the catalogue, nested under `credentials` for availability and booking —
- * and what to do when the answer is not an answer.
+ * Two things live here rather than at every call site. The account, in the two
+ * shapes the two families of endpoints want — flat at the top of the body for
+ * the catalogue, nested under `credentials` for availability and booking —
+ * taken from {@see Secrets}, which reads the environment.
  *
- * The original had one attempt, thirty seconds of patience, and no retry: one
- * blip on any of the eleven calls a boat's page makes killed the page with a
- * 502. And in the other direction, when the manager did answer with an error,
- * its body was handed to the browser word for word. Both are fixed in the same
- * few lines: a short timeout with a couple of retries on the way out, and a
- * refusal with two texts on the way back.
+ * And what to do when the answer is not an answer. Reaching nobody is worth
+ * trying again, so it is tried again: a boat's page makes ten calls, and one
+ * dropped packet anywhere in that chain must not be a broken page for the
+ * visitor. Being told no is not worth trying again, so it is not, and the
+ * operator's own error text goes into {@see Answer}'s second string, the one
+ * that is logged rather than shown.
  */
 final class Manager
 {

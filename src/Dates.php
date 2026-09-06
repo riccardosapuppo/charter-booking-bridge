@@ -7,17 +7,14 @@ namespace Charter;
 /**
  * Dates that are dates.
  *
- * The original had a converter and no validator, and the difference was
- * invisible because they looked the same from the outside. Its `to_dmy`
- * recognised two shapes and returned everything else exactly as it had arrived,
- * so a period of "pippo" to "2026-13-45" travelled the whole way through the
- * booking route and into the manager. Its `parse_dmy_ts` checked the shape with
- * a regular expression and never the calendar, so 31.02.2026 was accepted and
- * quietly became the 3rd of March.
+ * Two days on the calendar, in that order, not behind us, and not further ahead
+ * than the season goes. Anything else throws before it can reach the operator.
  *
- * And the route that booked did not even call the converter. The two routes
- * that only read did. The weakest input handling in the file was in the one
- * place that spent money.
+ * The calendar part is the one that is easy to skip: a regular expression says
+ * that 31.02.2026 has the shape of a date, and PHP will quietly turn it into
+ * the 3rd of March. {@see checkdate()} is what makes the difference, and
+ * {@see Week} is what carries the result, so that nothing downstream takes two
+ * strings and nothing downstream has to wonder.
  */
 final class Dates
 {
@@ -61,8 +58,8 @@ final class Dates
 
     /**
      * A single day, as a UTC timestamp at midnight, from either shape the site
-     * sends. Null when the value is not a day on the calendar — which includes
-     * 31.02, the case the original turned into the 3rd of March.
+     * sends. Null when the value is not a day on the calendar, which includes
+     * every day the shape allows and the calendar does not.
      */
     public static function day(mixed $value): ?int
     {

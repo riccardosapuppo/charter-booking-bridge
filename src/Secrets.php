@@ -7,16 +7,10 @@ namespace Charter;
 /**
  * The one place the account is read.
  *
- * In the original there were nine of these, one inside each route handler,
- * each a pair of string literals under a comment that said, in Italian, "CONFIG
- * (IN CLEAR)". Nine, not the eight everybody counted — and the difference is
- * not pedantry. It is the number of edits a password change takes, and the
- * ninth is the one that gets forgotten, so half the site keeps working and the
- * other half fails in a way nobody can reproduce.
- *
- * Here there is one read, from the environment, and the tests can prove it:
- * change the environment, and every route that talks to the manager sends the
- * new account. Nine of nine. On the code as it was, nought of nine.
+ * One read, from the environment, and every route that talks to the operator
+ * comes through here for it. That is a property a check can hold the code to:
+ * change the two variables, call all nine routes that need an account, and all
+ * nine of them talk to the operator with the new one. A rotation is one edit.
  *
  * Nothing in this repository holds a value. `.env.example` gives the two names
  * and no values, because the names are the part that is worth publishing.
@@ -33,7 +27,7 @@ final class Secrets
      * This is not a header. The manager takes the account inside the JSON, and
      * in two different shapes depending on which family of endpoints is being
      * asked — which is why both shapes live here, in one file, rather than
-     * being remembered at each of the nineteen call sites.
+     * being remembered at every call site.
      *
      * @return array{username:string,password:string}
      */

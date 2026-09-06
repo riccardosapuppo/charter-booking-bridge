@@ -7,15 +7,16 @@ namespace Charter;
 /**
  * The doorway the two writing routes go through.
  *
- * There was no doorway. Ten routes, ten `permission_callback => '__return_true'`,
- * and in the whole file not one `wp_verify_nonce`, not one `current_user_can`,
- * and nothing counting anything per caller. Nine of those ten read a catalogue,
- * and open is the right answer for them. The tenth walked a request through the
- * manager's three booking steps and came back with a confirmed reservation.
+ * Nine of the ten routes read a catalogue, and open is the right answer for
+ * them. The tenth walks a request through the operator's three booking steps
+ * and comes back with a confirmed reservation, and that one is behind this.
  *
- * A rate limit is not the interesting half. The interesting half is that a
- * booking must have been composed on a page we served: that is one line, it was
- * absent, and an absent line is invisible.
+ * The rate limit is not the interesting half. The interesting half is that a
+ * booking must have been composed on a page we served — that is what
+ * {@see Caller::fromOurPages()} means, and it is about the request carrying a
+ * nonce rather than about anybody signing in, because a booking form is meant
+ * to be public. Five bookings an hour from one address is generous for a family
+ * choosing a holiday and useless to a script.
  */
 final class Guard
 {

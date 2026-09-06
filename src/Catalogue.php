@@ -5,31 +5,22 @@ declare(strict_types=1);
 namespace Charter;
 
 /**
- * Every slow list the manager keeps, read in one place.
+ * Every slow list the operator keeps, read in one place.
  *
- * The original had eleven of these, written by copying: read a transient,
- * return it if it is a non-empty array, otherwise POST the account at an
- * endpoint, pull an array out of one key of the answer, reduce it to id => name
- * and store it. Eleven near-identical functions, and in one of them the key was
- * wrong.
+ * One function, one table of endpoints and response keys, and two properties
+ * worth stating plainly because the checks in test/ assert both:
  *
- *     $items = $res['categories'] ?? [];        // equipmentCategories
+ * A list is asked for once and then kept. Ten views of a boat's page cost one
+ * call for the equipment categories, not ten, and the second view of a boat
+ * costs one call in total — the week's price, which is the only thing that can
+ * have changed.
  *
- * The answer holds that array under `equipmentCategories`. `categories` is the
- * key the *yacht* categories endpoint uses, thirty lines further down, where it
- * is right. So the equipment category map was empty every time, every piece of
- * kit on a boat's page fell back to "Other", and the whole point of grouping —
- * sails here, navigation there, safety there — collapsed into one heap.
+ * And a list the operator answers with nothing is remembered as nothing. "There
+ * and empty" and "never asked" are different facts, so the guard below is
+ * `=== null` and not `empty()`: an empty shelf is worth keeping for twelve
+ * hours, not re-fetching on every page view of the site's life.
  *
- * The second half of that bug is the one worth the trouble. The guard was
- * `!empty($cached)`, and an empty map is empty, so the empty map that had just
- * been stored was never accepted again. Every single page view re-fetched a
- * catalogue that would never have anything in it. For ever. Nothing looked
- * broken: the site was just slow and the manager saw traffic nobody could
- * explain.
- *
- * So the shelves are a table, and the table is the only place a response key is
- * written down. Adding a twelfth list is a row, not a copy.
+ * Adding an eleventh list is a row in the table, not a copy of a function.
  */
 final class Catalogue
 {
@@ -58,7 +49,7 @@ final class Catalogue
      * Without it, drawing a shelf of twelve boats asks the cache for the model
      * list twelve times, and on a real site every one of those is a row out of
      * the options table, unserialised again. It does not look expensive in the
-     * code, which is the trouble with it.
+     * code, which is why there is a check that counts the reads.
      *
      * @var array<string,array<mixed>>
      */
@@ -116,10 +107,8 @@ final class Catalogue
     /**
      * One boat's catalogue entry.
      *
-     * The original fetched this on every page view and never cached it, then —
-     * to get the build year, one field — downloaded the operator's entire fleet
-     * as well. Both are catalogue: they change when somebody edits the boat,
-     * which is not during a page view.
+     * Catalogue, and kept like the rest of it: a boat changes when somebody
+     * edits the boat, which is not during a page view.
      *
      * @return array<string,mixed>|null
      */
@@ -137,9 +126,9 @@ final class Catalogue
     /**
      * Read it, or fetch it and keep it.
      *
-     * `=== null` and not `empty()`: a list the manager legitimately answers with
-     * nothing is a fact worth keeping for twelve hours, not a reason to ask
-     * again on the next page view and every page view after that.
+     * `=== null` and not `empty()`: a list the operator legitimately answers
+     * with nothing is a fact worth keeping for twelve hours, not a reason to
+     * ask again on the next page view and every page view after that.
      *
      * @param callable():array<mixed> $fetch
      *

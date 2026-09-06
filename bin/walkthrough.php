@@ -13,10 +13,11 @@ declare(strict_types=1);
  *
  * It also deliberately walks into two closed doors — a stranger posting at the
  * booking route, and a week that has already gone — because a journey that only
- * ever succeeds does not tell you the refusals work.
+ * ever succeeds does not tell you the refusals work. It is the shape of check
+ * that finds the thing nobody thought to assert: an empty shelf of special
+ * offers on a fleet that plainly has some, for one.
  *
- *   php bin/walkthrough.php                      the bridge
- *   php bin/walkthrough.php --bridge=as-it-was   the code as it was
+ *   php bin/walkthrough.php
  *
  * Exits non-zero when a step does not do what the line says it should.
  */
@@ -27,21 +28,13 @@ use Charter\Bench;
 use Charter\Caller;
 use Charter\Fleet;
 
-$which = 'repaired';
-
 foreach (array_slice($argv, 1) as $said) {
-    if (str_starts_with($said, '--bridge=')) {
-        $which = substr($said, strlen('--bridge='));
-    }
-}
-
-if (!in_array($which, Bench::both(), true)) {
-    fwrite(STDERR, '--bridge must be one of: ' . implode(', ', Bench::both()) . PHP_EOL);
+    fwrite(STDERR, 'Unknown argument: ' . $said . PHP_EOL);
 
     exit(2);
 }
 
-$bench = Bench::of($which);
+$bench = Bench::of();
 $week = $bench->week();
 $wrong = 0;
 
@@ -65,11 +58,11 @@ function step(string $doing, string $ought, callable $step): void
     }
 }
 
-echo PHP_EOL, 'A visitor, through the ten routes, on the ', $which, ' bridge.', PHP_EOL;
+echo PHP_EOL, 'A visitor, through the ten routes, in the order the site calls them.', PHP_EOL;
 echo 'The week is ', $week['periodFrom'], ' to ', $week['periodTo'], '.', PHP_EOL, PHP_EOL;
 
 step('the front page carousel', 'boats, with prices', static function () use ($bench, $week): array {
-    $said = $bench->routes->yachtsCarousel($week + ['take' => 4], Caller::anonymous());
+    $said = $bench->nextRequest()->yachtsCarousel($week + ['take' => 4], Caller::anonymous());
     $items = $said->body['items'] ?? [];
 
     return [
@@ -79,7 +72,7 @@ step('the front page carousel', 'boats, with prices', static function () use ($b
 });
 
 step('the discounted shelf', 'only boats with a discount', static function () use ($bench, $week): array {
-    $said = $bench->routes->yachtsCarousel($week + ['take' => 4, 'promoOnly' => 1], Caller::anonymous());
+    $said = $bench->nextRequest()->yachtsCarousel($week + ['take' => 4, 'promoOnly' => 1], Caller::anonymous());
     $items = $said->body['items'] ?? [];
     $all = $items !== [] && count(array_filter($items, static fn (array $one): bool => ($one['discountPercent'] ?? 0) > 0)) === count($items);
 
@@ -90,7 +83,7 @@ step('the dropdowns behind the search', 'three lists, in name order', static fun
     $counted = [];
 
     foreach (['countries', 'locations', 'yachtCategories'] as $list) {
-        $said = $bench->routes->{$list}([], Caller::anonymous());
+        $said = $bench->nextRequest()->{$list}([], Caller::anonymous());
         $counted[] = count($said->body['items'] ?? []);
     }
 
@@ -98,7 +91,7 @@ step('the dropdowns behind the search', 'three lists, in name order', static fun
 });
 
 step('a search for that week', 'boats, and a count that matches', static function () use ($bench, $week): array {
-    $said = $bench->routes->freeYachtsSearch($week + ['perPage' => 3], Caller::anonymous());
+    $said = $bench->nextRequest()->freeYachtsSearch($week + ['perPage' => 3], Caller::anonymous());
 
     return [
         $said->ok && count($said->body['items'] ?? []) === 3,
@@ -107,19 +100,19 @@ step('a search for that week', 'boats, and a count that matches', static functio
 });
 
 step('the site says what was shown', 'the ids are counted', static function () use ($bench): array {
-    $said = $bench->routes->trackSearch(['ids' => [5001, 5002, 5001]], Caller::anonymous());
+    $said = $bench->nextRequest()->trackSearch(['ids' => [5001, 5002, 5001]], Caller::anonymous());
 
     return [$said->ok, ($said->body['counted'] ?? '?') . ' counted'];
 });
 
 step('the most searched shelf', 'the boats that were counted', static function () use ($bench, $week): array {
-    $said = $bench->routes->yachtsMostSearched($week, Caller::anonymous());
+    $said = $bench->nextRequest()->yachtsMostSearched($week, Caller::anonymous());
 
     return [$said->ok, count($said->body['items'] ?? []) . ' boats on the shelf'];
 });
 
 step('opening a boat', 'its kind, its fittings, its price', static function () use ($bench, $week): array {
-    $said = $bench->routes->yachtDetail(['yachtId' => 5001] + $week, Caller::anonymous());
+    $said = $bench->nextRequest()->yachtDetail(['yachtId' => 5001] + $week, Caller::anonymous());
     $boat = $said->body['yacht'] ?? [];
 
     return [
@@ -132,27 +125,27 @@ step('opening a boat', 'its kind, its fittings, its price', static function () u
 });
 
 step('a promo code that is not real', 'refused', static function () use ($bench, $week): array {
-    $said = $bench->routes->yachtPromo(['yachtId' => 5001, 'promoCode' => 'NOT-A-CODE'] + $week, Caller::fromOurPages());
+    $said = $bench->nextRequest()->yachtPromo(['yachtId' => 5001, 'promoCode' => 'NOT-A-CODE'] + $week, Caller::fromOurPages());
 
     return [!$said->ok, $said->ok ? 'accepted' : $said->said];
 });
 
 step('the promo code on the poster', 'a lower price', static function () use ($bench, $week): array {
-    $said = $bench->routes->yachtPromo(['yachtId' => 5001, 'promoCode' => Fleet::PROMO] + $week, Caller::fromOurPages());
+    $said = $bench->nextRequest()->yachtPromo(['yachtId' => 5001, 'promoCode' => Fleet::PROMO] + $week, Caller::fromOurPages());
 
     return [$said->ok, $said->ok ? 'now ' . $said->body['price'] : $said->said];
 });
 
 step('a stranger posts at the booking route', 'refused, nothing written', static function () use ($bench, $week): array {
     $before = count($bench->manager->reservations());
-    $said = $bench->routes->yachtRequest(['yachtId' => 5001] + $week + Bench::someone(), Caller::anonymous());
+    $said = $bench->nextRequest()->yachtRequest(['yachtId' => 5001] + $week + Bench::someone(), Caller::anonymous());
     $after = count($bench->manager->reservations());
 
     return [!$said->ok && $after === $before, $said->ok ? 'booked' : $said->said];
 });
 
 step('the visitor books, from the form', 'a confirmed reservation', static function () use ($bench, $week): array {
-    $said = $bench->routes->yachtRequest(
+    $said = $bench->nextRequest()->yachtRequest(
         ['yachtId' => 5001, 'equipmentIds' => [['equipmentId' => 31, 'quantity' => 1]]] + $week + Bench::someone(),
         Caller::fromOurPages(),
     );
@@ -166,7 +159,7 @@ step('the visitor books, from the form', 'a confirmed reservation', static funct
 });
 
 step('somebody else wants the same week', 'refused: it has gone', static function () use ($bench, $week): array {
-    $said = $bench->routes->yachtRequest(
+    $said = $bench->nextRequest()->yachtRequest(
         ['yachtId' => 5001] + $week + Bench::someone(),
         Caller::fromOurPages('203.0.113.55'),
     );

@@ -14,7 +14,8 @@ namespace Charter;
  * exactly the arrangement in which they drift apart without a sound.
  *
  * The page's rule, kept exactly: an extra included in the price adds nothing,
- * and an extra with an amount between two and thirty is multiplied by it.
+ * and an extra with an amount between two and thirty is multiplied by it. The
+ * bridge does not read this class — it is the other side of the comparison.
  */
 final class Shown
 {

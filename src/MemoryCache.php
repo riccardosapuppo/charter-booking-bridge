@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Charter;
 
 /**
- * A cache for the tests and for a single request. The WordPress half hands the
+ * A cache for the checks and for a single request. The WordPress half hands the
  * bridge a transient-backed one instead; see wordpress/charter-bridge.
  */
 final class MemoryCache implements Cache
@@ -18,7 +18,7 @@ final class MemoryCache implements Cache
      *
      * On a real site every one of these is a row out of the options table, so a
      * page that reads a catalogue once per boat is a page that does not look
-     * expensive and is.
+     * expensive and is. Counted here so that a check can put a number on it.
      */
     public int $reads = 0;
 

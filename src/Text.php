@@ -5,13 +5,12 @@ declare(strict_types=1);
 namespace Charter;
 
 /**
- * The manager returns names as one object per language. The site is Italian, so
- * Italian if there is one, then English, then whatever else came.
+ * The operator returns names as one object per language. The site is Italian,
+ * so Italian if there is one, then English, then whatever else came.
  *
- * The original listed five languages and returned an empty string for anything
- * outside the list, which is a silent way to lose a name. This one falls back
- * to the first non-empty text of any language, because a name in the wrong
- * language beats a blank on the page.
+ * The last step is the one that matters: any language beats a blank on the
+ * page, so a name in a language nobody expected is still returned rather than
+ * silently lost.
  */
 final class Text
 {

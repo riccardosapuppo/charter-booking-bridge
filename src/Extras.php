@@ -7,21 +7,17 @@ namespace Charter;
 /**
  * The optional things: a skipper, bed linen, a gennaker, an outboard.
  *
- * Two separate mistakes met here, and they met on the money.
+ * Two guarantees live here, and they are both about money.
  *
- * The first is that nobody checked. The ids came out of the browser, were cast
- * to positive integers, and were forwarded to the operator without anybody
- * asking whether that boat offers that extra, in that season, from that base,
- * for a week that long. The check existed — the original had a function that
- * did all four of those things, written out in full, twenty-three lines — and
- * it was never called from anywhere. It sat there looking like a defence.
+ * An extra is checked against the boat before it is forwarded: this boat, this
+ * season, this base, a charter this long. An id the visitor sends that is not
+ * on that list is refused, and the booking does not happen — it does not go
+ * through with a line the operator has to sort out by hand.
  *
- * The second is the quantity. The page multiplies: bed linen is priced per
- * person and the boat sleeps six, so the total on the screen went up by six
- * times thirty-five. The request then sent `quantity: 1`, and the bridge threw
- * even that away and forwarded a bare number. So the visitor was shown one
- * figure and the operator booked another, and neither side had anything that
- * could notice.
+ * And the quantity is the server's. Bed linen is priced per person and the boat
+ * sleeps six, so the total on the screen goes up by six times thirty-five; what
+ * makes the operator charge the same six is that the quantity on the line comes
+ * from the boat's own offer here, and not from the request.
  */
 final class Extras
 {
@@ -100,9 +96,10 @@ final class Extras
      * How many of this extra a booking takes. The offer carries it: one tender,
      * six sets of linen for a boat that sleeps six.
      *
-     * The bound is the page's, kept deliberately: it refused to multiply by
-     * anything above thirty, and a quantity that large is a data error rather
-     * than an order.
+     * Note what is not read here: the request. The bound of thirty is the same
+     * bound the page applies when it adds the figure up, which is what keeps
+     * the two arithmetics equal at the ends as well as in the middle — a
+     * quantity that large is a data error rather than an order.
      *
      * @param array<string,mixed> $offer
      */
@@ -120,8 +117,8 @@ final class Extras
     }
 
     /**
-     * The check the original wrote and never called: is this extra on offer for
-     * this period, this length of charter, and this base.
+     * Is this extra on offer for this period, this length of charter, and this
+     * base.
      *
      * @param array<string,mixed> $offer
      */

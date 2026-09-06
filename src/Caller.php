@@ -7,12 +7,10 @@ namespace Charter;
 /**
  * Who is asking.
  *
- * The original never had this. All ten routes were registered with
- * `permission_callback => '__return_true'`, so the question never came up: the
- * handler could not have told you who was calling if it had wanted to.
- *
- * Nine of the ten read a catalogue and can stay open. One of them commits a
- * week of somebody else's boat, and it is the whole reason this type exists.
+ * Nine of the ten routes read a catalogue and can stay open. One of them
+ * commits a week of the operator's boat, and it is the whole reason this type
+ * exists: the route that books is handed a caller, and it asks it two
+ * questions before it does anything at all.
  */
 final class Caller
 {
@@ -23,8 +21,8 @@ final class Caller
     }
 
     /**
-     * A visitor with a session on the site's own pages: WordPress minted them a
-     * nonce, and it came back with the form.
+     * A visitor on the site's own pages: WordPress minted them a nonce, and it
+     * came back with the form.
      *
      * The name says what it means rather than what it is made of. A nonce
      * proves the request was composed by a page we served, not that anybody

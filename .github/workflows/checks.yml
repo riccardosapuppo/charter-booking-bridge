@@ -14,7 +14,7 @@ jobs:
   # plain PHP: no Composer, no database, no network, and no WordPress. The
   # WordPress half is one file that this job only lints, because it is the only
   # file in the repository that decides nothing.
-  the-claims:
+  the-guarantees:
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -31,25 +31,21 @@ jobs:
           find src bin test wordpress -name '*.php' -print0 | xargs -0 -n1 php -l
 
       - name: the checks
+        # One guarantee to a check, each named as the sentence it holds the
+        # bridge to. Every one of them has been watched to fail with the
+        # guarantee taken out of src/; the README's second table is that record.
         run: php bin/prove.php
-
-      - name: the same checks against the code as it was
-        # The part that makes the rest mean anything. Every repair here has a
-        # check that fails on the original, and this command runs them against
-        # it and requires the failure — with a phrase out of what each one says.
-        # A repair that quietly stops being a repair turns this step green in
-        # the wrong way, and the step fails.
-        run: php bin/red.php
 
       - name: one visitor, front page to booking
         # Not the suite. The suite was written by whoever wrote the code, which
         # is a well-known way of agreeing with yourself; this walks the ten
-        # routes in the order the site calls them and says whether a person
-        # could get through. It is what found the empty carousel of special
-        # offers, which reading the file had not.
+        # routes in the order the site calls them, one page load at a time, and
+        # says whether a person could get through. It is the shape of check that
+        # notices a shelf of special offers coming back empty on a fleet that
+        # plainly has some.
         run: php bin/walkthrough.php
 
-      - name: the six claims
+      - name: the eight guarantees, measured
         # Exits non-zero when one of them stops holding. They are what the
         # README opens with, so they are the thing that has to be able to fail.
         run: php bin/measure.php
@@ -87,11 +83,11 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: no byte order marks
-        # Three bytes in front of a PHP file are output, emitted before any
-        # header can be sent and in front of the body of every JSON answer. The
-        # file this was rebuilt from began with them. The suite checks this too;
-        # it is here as well because it costs nothing and it is the sort of
-        # thing that comes back through an editor rather than through a commit.
+        # Three bytes in front of a PHP file are output: emitted before any
+        # header can be sent, and in front of the body of every JSON answer,
+        # where they stop it parsing. The suite checks this too; it is here as
+        # well because it costs nothing and it is the sort of thing that comes
+        # back through an editor rather than through a commit.
         run: |
           bad=0
 
@@ -121,14 +117,15 @@ jobs:
             -- . ':!*.example' ':!.github' > found.txt || true
 
           # A pattern that has stopped matching finds nothing and passes. There
-          # are known assignments here — the placeholder account in the rebuilt
-          # original, nine times, and the demo one the invented supplier checks
-          # against — so finding none of them means the search is broken.
+          # are two known assignments here — the account of the invented
+          # supplier, which exists nowhere, and the NAME of the environment
+          # variable the bridge reads the real one from — so finding fewer than
+          # two means the search is broken and not that the repository is clean.
           found=$(wc -l < found.txt)
           echo "$found assignments that look like a credential:"
           cat found.txt
 
-          if [ "$found" -lt 10 ]; then
+          if [ "$found" -lt 2 ]; then
             echo "The search found almost nothing, so it is the search that is wrong."
             exit 1
           fi
