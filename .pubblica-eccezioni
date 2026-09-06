@@ -1,0 +1,25 @@
+# Riscontri veri che non sono segreti, e perche'.
+#
+# Ognuno e' stato letto. Nessuno apre qualcosa che esiste.
+#
+# Questo progetto dimostra un difetto che riguarda proprio le credenziali: nel
+# codice di partenza l'account del gestionale era ricopiato in nove blocchi, e
+# la riparazione consiste nel leggerlo da un posto solo. Una dimostrazione del
+# genere ha bisogno di un account da mostrare in entrambi gli stati — sparso e
+# raccolto — altrimenti e' un'affermazione, non una prova che si puo' eseguire.
+#
+# L'account che compare qui non e' di nessuno: e' quello del gestionale
+# inventato, che vive dentro questo repository, non ha rete, non ha porte e non
+# esiste da nessun'altra parte. Il file dei segreti veri non contiene valori:
+# contiene i NOMI delle due variabili d'ambiente da cui l'account si legge, ed e'
+# esattamente quello che si vuole vedere in un repository pubblico.
+#
+# Non vale per l'account vero del fornitore, che in questo repository non c'e' in
+# nessuna forma, nemmeno offuscato, nemmeno in un commento, nemmeno in un file
+# di esempio. Quello blocca comunque, da qualunque file.
+#
+# Nota per chi scrive qui: le motivazioni non devono riprodurre il codice che
+# scusano. Questo file viene esaminato come tutti gli altri.
+
+src/InventedManager.php  # l'account del gestionale che non esiste, senza il quale la prova sull'account non si puo' eseguire
+src/Secrets.php          # i nomi delle due variabili d'ambiente, e la forma della risposta: nessun valore
