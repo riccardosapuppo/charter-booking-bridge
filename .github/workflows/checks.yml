@@ -1,0 +1,146 @@
+name: checks
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  # One job, on Linux, and no dependencies to install. Everything under src/ is
+  # plain PHP: no Composer, no database, no network, and no WordPress. The
+  # WordPress half is one file that this job only lints, because it is the only
+  # file in the repository that decides nothing.
+  the-claims:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+
+      - name: everything parses
+        run: |
+          find src bin test wordpress -name '*.php' -print0 | xargs -0 -n1 php -l
+
+      - name: the checks
+        run: php bin/prove.php
+
+      - name: the same checks against the code as it was
+        # The part that makes the rest mean anything. Every repair here has a
+        # check that fails on the original, and this command runs them against
+        # it and requires the failure — with a phrase out of what each one says.
+        # A repair that quietly stops being a repair turns this step green in
+        # the wrong way, and the step fails.
+        run: php bin/red.php
+
+      - name: one visitor, front page to booking
+        # Not the suite. The suite was written by whoever wrote the code, which
+        # is a well-known way of agreeing with yourself; this walks the ten
+        # routes in the order the site calls them and says whether a person
+        # could get through. It is what found the empty carousel of special
+        # offers, which reading the file had not.
+        run: php bin/walkthrough.php
+
+      - name: the six claims
+        # Exits non-zero when one of them stops holding. They are what the
+        # README opens with, so they are the thing that has to be able to fail.
+        run: php bin/measure.php
+
+      - name: the README prints what the program prints
+        # The measurement appears in the README in full. A block of output
+        # pasted into prose is a block that was true once, so it is regenerated
+        # here and compared against the file. The program is the copy that
+        # counts.
+        #
+        # Carriage returns dropped from both sides: a working copy checked out
+        # on Windows would otherwise fail a check that is about content.
+        run: |
+          php bin/measure.php | tr -d '\015' > now.txt
+
+          sed -n '/^## The measurement, in full/,$p' README.md \
+            | sed -n '/^```$/,/^```$/p' \
+            | sed '1d;$d' \
+            | tr -d '\015' > said.txt
+
+          # Two empty files compare equal, and that is a check that passes by
+          # finding nothing. So the emptiness is tested first.
+          if [ ! -s said.txt ]; then
+            echo "No measurement block found in the README. Nothing was compared."
+            exit 1
+          fi
+
+          diff -u said.txt now.txt
+
+  the-repository:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: no byte order marks
+        # Three bytes in front of a PHP file are output, emitted before any
+        # header can be sent and in front of the body of every JSON answer. The
+        # file this was rebuilt from began with them. The suite checks this too;
+        # it is here as well because it costs nothing and it is the sort of
+        # thing that comes back through an editor rather than through a commit.
+        run: |
+          bad=0
+
+          for file in $(git ls-files); do
+            if [ "$(head -c3 "$file" | xxd -p)" = "efbbbf" ]; then
+              echo "$file starts with a byte order mark."
+              bad=$((bad + 1))
+            fi
+          done
+
+          if [ "$bad" -eq 0 ]; then
+            echo "No file here starts with a byte order mark."
+          fi
+
+          exit $bad
+
+      - name: nothing here is anybody's account
+        # What this does NOT do: search for the operator's name, the supplier's
+        # name, or the account. Those belong to the publication gate outside
+        # this repository, where they can be named — a workflow that greps for a
+        # secret is a workflow that contains it.
+        #
+        # What is checkable from inside is the shape: something that looks like
+        # a credential being assigned a literal.
+        run: |
+          git grep -niIE "(pass(word)?|secret|token|api[_-]?key)[\"']?[[:space:]]*(=|=>|:)[[:space:]]*[\"'][^\"']{6,}[\"']" \
+            -- . ':!*.example' ':!.github' > found.txt || true
+
+          # A pattern that has stopped matching finds nothing and passes. There
+          # are known assignments here — the placeholder account in the rebuilt
+          # original, nine times, and the demo one the invented supplier checks
+          # against — so finding none of them means the search is broken.
+          found=$(wc -l < found.txt)
+          echo "$found assignments that look like a credential:"
+          cat found.txt
+
+          if [ "$found" -lt 10 ]; then
+            echo "The search found almost nothing, so it is the search that is wrong."
+            exit 1
+          fi
+
+          # What is allowed: the demo account, which says so in its own name;
+          # the rotated one a check uses; the NAMES of the two environment
+          # variables the bridge reads; and anything on a reserved example
+          # domain.
+          if grep -vE "(demo-password|rotated-password|CHARTER_MANAGER_|example)" found.txt > real.txt; then
+            echo "Something shaped like a real credential is assigned here:"
+            cat real.txt
+            exit 1
+          fi
+
+          echo "Nothing here assigns a credential that is not a declared placeholder."
