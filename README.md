@@ -6,9 +6,9 @@ that something: ten REST routes that stand between a browser and a system where
 a boat can actually be taken off the market for a week.
 
 Nine of those routes read a catalogue. The tenth commits money that is not the
-website's — it walks the supplier's three obligatory steps, a quote, an option
-and a booking, and comes back with a confirmed reservation. Everything here is
-arranged around that asymmetry.
+website's, walking the supplier's three obligatory steps of quote, option and
+booking to come back with a confirmed reservation. Everything here is arranged
+around that asymmetry.
 
 ## What the bridge guarantees
 
@@ -59,10 +59,10 @@ thing, and taking the guarantee out moves all three.
 
 Doing this is what found the two checks that were not asking for anything.
 Counting calls across ten page views on a single bridge object counts a memo
-held in memory for the length of one request, not the cache — the cache could be
-taken out altogether and the count would not move. So `Bench::nextRequest()`
-builds the bridge again between views, the way PHP does on every request, and
-the two checks about the catalogue now go red when the cache goes.
+held in memory for the length of one request, not the cache, which could be
+taken out altogether without the count moving. So `Bench::nextRequest()` builds
+the bridge again between views, the way PHP does on every request, and the two
+checks about the catalogue now go red when the cache goes.
 
 ---
 
@@ -83,7 +83,7 @@ php bin/measure.php        # the eight guarantees, with the working shown
 **What you do not need**: Composer, a database, a web server, a network
 connection, an account with anybody, and WordPress. There is no install step and
 nothing is written outside the repository, so there is nothing to undo
-afterwards either — deleting the directory is the whole of it.
+afterwards beyond deleting the directory.
 
 Everything runs against an invented supplier in memory: an operator numbered
 900001, six boats named after the phonetic alphabet, a marina and a bay that do
@@ -92,11 +92,11 @@ it for one somebody could spend.
 
 `bin/walkthrough.php` is the one to read the output of. It is not the suite: it
 walks the ten routes in the order the site calls them, as a visitor would, one
-page load at a time, and prints what came back at every step — including two
-steps that are meant to be refused, because a journey that only ever succeeds
-tells you nothing about the doors. It is the shape of check that notices a
-shelf of special offers coming back empty on a fleet that plainly has some,
-which is the sort of thing no diff shows and no assertion was written for.
+page load at a time, and prints what came back at every step, two of which are
+meant to be refused, because a journey that only ever succeeds tells you nothing
+about the doors. It is the shape of check that notices a shelf of special
+offers coming back empty on a fleet that plainly has some, which is the sort of
+thing no diff shows and no assertion was written for.
 
 ---
 
@@ -126,9 +126,9 @@ The one thing worth saying twice, because it is the guarantee that costs the
 most to lose.
 
 The form sends identifiers, dates and a customer. There is no `price`, `total`
-or `amount` in any request body anywhere, and no route reads one — there is a
-check that searches `src/` for it and fails if one appears. The supplier decides
-what a week costs and the site commits whatever it says.
+or `amount` in any request body anywhere, no route reads one, and a check
+searches `src/` for it and fails if one appears. The supplier decides what a
+week costs and the site commits whatever it says.
 
 The screen still has to add up: the page shows a total before anybody books.
 That arithmetic is transcribed into `src/Shown.php`, which the bridge never
@@ -172,8 +172,8 @@ The limits, so they are read here rather than found:
 One file, `wordpress/charter-bridge/charter-bridge.php`, and it decides nothing.
 It turns a `WP_REST_Request` into an array and a caller, calls a method, and
 turns the answer back into a response or a `WP_Error`. Transients become the
-cache, `wp_remote_request` becomes the way out, and the customer's message —
-which the supplier has no field for — becomes an email to whoever looks after
+cache, `wp_remote_request` becomes the way out, and the customer's message
+(which the supplier has no field for) becomes an email to whoever looks after
 the bookings.
 
 It also means nothing in `src/` needs WordPress, which is why the suite runs in
@@ -391,8 +391,8 @@ All 8 claims hold.
 Rebuilt from the WordPress side of a live charter website, with everything
 identifying removed: no client, no operator, no supplier, no host, no account,
 no real boat, base or location identifiers, no real booking numbers, no real
-promo codes, and no real people — the customer in the checks is invented and her
-address is a road that does not exist. The supplier's own API documentation is
+promo codes, and no real people, the customer in the checks being invented and
+her address a road that does not exist. The supplier's own API documentation is
 not here and none of it is quoted: what is described is the behaviour that was
 observed, in my own words.
 
