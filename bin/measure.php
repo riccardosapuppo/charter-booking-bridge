@@ -15,7 +15,9 @@ require __DIR__ . '/../src/autoload.php';
 
 use Charter\Claims;
 
-echo PHP_EOL;
+// No blank line before the first one: what this prints is pasted into the README
+// and diffed against it there, so the report is a document rather than something
+// spaced away from a shell prompt, and a document does not open on an empty line.
 echo 'An invented operator, an invented fleet, and the ten routes measured against', PHP_EOL;
 echo 'them: what the bridge guarantees, and the working for each figure.', PHP_EOL;
 
